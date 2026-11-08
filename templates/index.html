@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f5f7fb">
+    <title>MeetMind | Meeting intelligence, made simple</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="home-page">
+    <header class="site-header">
+        <a class="brand" href="/" aria-label="MeetMind home">
+            <span class="brand-mark" aria-hidden="true">M</span>
+            <span class="brand-name">MeetMind</span>
+        </a>
+        <div class="header-note">
+            <span class="header-note-dot" aria-hidden="true"></span>
+            Your meeting workspace
+        </div>
+    </header>
+
+    <main class="home-main">
+        <section class="home-content" aria-labelledby="welcome-heading">
+            <div class="home-intro">
+                <p class="home-eyebrow">MEETING INTELLIGENCE</p>
+                <h1 id="welcome-heading">
+                    Make every meeting<br class="desktop-break">
+                    <span>more meaningful.</span>
+                </h1>
+                <p class="home-description">
+                    Turn conversations into clear summaries, searchable transcripts,
+                    and next steps your team can act on.
+                </p>
+            </div>
+
+            <div class="meeting-options">
+                <section class="meeting-card upload-card" aria-labelledby="upload-heading">
+                    <div class="card-heading">
+                        <span class="card-icon upload-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14.5v4A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5v-4" />
+                            </svg>
+                        </span>
+                        <span class="card-label">FROM A RECORDING</span>
+                    </div>
+
+                    <h2 id="upload-heading">Upload a meeting</h2>
+                    <p class="card-description">
+                        Get an AI-generated summary and transcript from an audio file.
+                    </p>
+
+                    <form class="upload-form"
+                          action="/upload"
+                          method="POST"
+                          enctype="multipart/form-data">
+                        <label class="file-picker" for="meetingFile">
+                            <span class="file-picker-title">Choose an audio file</span>
+                            <span class="file-picker-hint">MP3, WAV, or M4A</span>
+                            <input id="meetingFile"
+                                   type="file"
+                                   name="meeting_file"
+                                   accept=".mp3,.wav,.m4a"
+                                   required>
+                        </label>
+                        <button class="primary-action" type="submit">
+                            Generate meeting insights
+                            <span aria-hidden="true">→</span>
+                        </button>
+                    </form>
+                    <p class="card-footnote">Your recording is used only to prepare your meeting results.</p>
+                </section>
+
+                <section class="meeting-card live-card" aria-labelledby="live-heading">
+                    <div class="card-heading">
+                        <span class="card-icon live-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <rect x="4" y="6" width="16" height="12" rx="2" />
+                                <path d="m10 10 5 2-5 2v-4Z" />
+                                <path d="M8 3.5h8M8 20.5h8" />
+                            </svg>
+                        </span>
+                        <span class="card-label">WHILE YOU MEET</span>
+                    </div>
+
+                    <h2 id="live-heading">Capture a live meeting</h2>
+                    <p class="card-description">
+                        Record meeting-tab audio and get the same useful insights after your call.
+                    </p>
+
+                    <div class="live-action">
+                        <button type="button"
+                                id="startLiveMeeting"
+                                class="primary-action live-start-button">
+                            Start live capture
+                            <span aria-hidden="true">→</span>
+                        </button>
+                        <button type="button"
+                                id="stopLiveMeeting"
+                                class="secondary-action"
+                                disabled>
+                            Stop meeting
+                        </button>
+                    </div>
+                    <p class="live-status" id="liveStatus" role="status" aria-live="polite">
+                        Ready when you are
+                    </p>
+                    <p class="card-footnote">Select the meeting tab and enable audio when your browser asks.</p>
+                </section>
+            </div>
+
+            <footer class="home-footer">
+                <span>Less note-taking. More meaningful follow-through.</span>
+                <span class="footer-divider" aria-hidden="true"></span>
+                <span>Built for better conversations</span>
+            </footer>
+        </section>
+    </main>
+
+<script>
+const startButton = document.getElementById("startLiveMeeting");
+const stopButton = document.getElementById("stopLiveMeeting");
+const liveStatus = document.getElementById("liveStatus");
+
+let liveStream = null;
+let mediaRecorder = null;
+let audioChunks = [];
+
+
+// START LIVE MEETING
+startButton.addEventListener("click", async () => {
+
+    try {
+
+        liveStatus.textContent = "Select your meeting tab...";
+
+        liveStream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: true
+        });
+
+        // Check whether audio is available
+        if (liveStream.getAudioTracks().length === 0) {
+
+            liveStream.getTracks().forEach(track => track.stop());
+
+            liveStream = null;
+
+            liveStatus.textContent = "No meeting audio detected.";
+
+            return;
+        }
+
+        // Use only the audio track
+        const audioStream = new MediaStream(
+            liveStream.getAudioTracks()
+        );
+
+        const mimeType = MediaRecorder.isTypeSupported(
+            "audio/webm;codecs=opus"
+        ) ? "audio/webm;codecs=opus" : "audio/webm";
+
+        mediaRecorder = new MediaRecorder(audioStream, {
+            mimeType: mimeType
+        });
+
+        audioChunks = [];
+
+
+        // Collect audio data
+        mediaRecorder.ondataavailable = (event) => {
+
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+
+        };
+
+
+        // STOP AND PROCESS RECORDING
+        mediaRecorder.onstop = async () => {
+
+            const audioBlob = new Blob(audioChunks, {
+                type: mediaRecorder.mimeType
+            });
+
+            liveStatus.textContent =
+                "Uploading recording and generating transcript...";
+
+            liveStream?.getTracks().forEach(track => track.stop());
+
+            liveStream = null;
+
+            startButton.disabled = true;
+            stopButton.disabled = true;
+
+            try {
+
+                const formData = new FormData();
+
+                formData.append(
+                    "audio",
+                    audioBlob,
+                    "live_meeting.webm"
+                );
+
+                // Send recording to Flask
+                const response = await fetch("/save-live-recording", {
+                    method: "POST",
+                    body: formData
+                });
+
+                // Handle errors
+                if (!response.ok) {
+
+                    const errorResult = await response.json();
+
+                    throw new Error(
+                        errorResult.message || "Meeting processing failed."
+                    );
+
+                }
+
+                // Receive transcript results HTML
+                const html = await response.text();
+
+                // Display transcript page
+                document.open();
+                document.write(html);
+                document.close();
+
+            } catch (error) {
+
+                console.error(
+                    "Live meeting processing error:",
+                    error
+                );
+
+                liveStatus.textContent =
+                    error.message || "Failed to process meeting.";
+
+                startButton.disabled = false;
+                stopButton.disabled = true;
+
+            }
+
+            mediaRecorder = null;
+            audioChunks = [];
+
+        };
+
+
+        // Recording error
+        mediaRecorder.onerror = (event) => {
+
+            console.error("Recorder error:", event.error);
+
+            liveStatus.textContent = "Recording error occurred.";
+
+        };
+
+
+        // Start recording
+        mediaRecorder.start(1000);
+
+        startButton.disabled = true;
+        stopButton.disabled = false;
+
+        liveStatus.textContent =
+            "Meeting recording in progress...";
+
+
+        // Automatically stop if screen sharing ends
+        const videoTrack = liveStream.getVideoTracks()[0];
+
+        if (videoTrack) {
+
+            videoTrack.addEventListener("ended", () => {
+                stopRecording();
+            });
+
+        }
+
+    } catch (error) {
+
+        console.error("Capture error:", error);
+
+        liveStatus.textContent =
+            "Unable to start meeting recording.";
+
+        liveStream?.getTracks().forEach(track => track.stop());
+
+        liveStream = null;
+
+        startButton.disabled = false;
+        stopButton.disabled = true;
+
+    }
+
+});
+
+
+// STOP BUTTON
+stopButton.addEventListener("click", stopRecording);
+
+
+// STOP RECORDING FUNCTION
+function stopRecording() {
+
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+
+        mediaRecorder.stop();
+
+        liveStatus.textContent =
+            "Stopping recording...";
+
+    }
+
+}
+</script>
+
+</body>
+</html>
