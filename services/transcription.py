@@ -50,11 +50,11 @@ def transcribe_audio(audio_path):
 
         transcript = []
 
-        for segment in segments:
+        for segment in result.segments:
             transcript.append({
-                "start": round(segment.start, 2),
-                "end": round(segment.end, 2),
-                "text": segment.text.strip()
+                "start": round(segment["start"], 2),
+                "end": round(segment["end"], 2),
+                "text": segment["text"].strip()
             })
 
         return transcript
