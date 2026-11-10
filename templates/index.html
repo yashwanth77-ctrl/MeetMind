@@ -107,6 +107,36 @@
                     </p>
                     <p class="card-footnote">Select the meeting tab and enable audio when your browser asks.</p>
                 </section>
+
+                <section class="meeting-card project-card" aria-labelledby="project-heading">
+                    <div class="card-heading">
+                        <span class="card-icon project-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <rect x="3.5" y="4" width="17" height="16" rx="2" />
+                                <path d="M8 9h3v3H8zM13 10.5h3M9.5 12v3h5v-2M14.5 15v-2" />
+                            </svg>
+                        </span>
+                        <span class="card-label">UNDERSTAND ANY CODEBASE</span>
+                    </div>
+
+                    <h2 id="project-heading">Analyze a project</h2>
+                    <p class="card-description">
+                        Upload a project ZIP. AI examines its source code and creates a workflow flowchart with a step-by-step explanation.
+                    </p>
+
+                    <form class="upload-form" action="/analyze-project" method="POST" enctype="multipart/form-data">
+                        <label class="file-picker" for="projectFile">
+                            <span class="file-picker-title">Choose a project ZIP</span>
+                            <span class="file-picker-hint">ZIP archive containing your source code · Max 150 MB</span>
+                            <input id="projectFile" type="file" name="project_file" accept=".zip,application/zip" required>
+                        </label>
+                        <button class="primary-action" type="submit">
+                            Generate project workflow
+                            <span aria-hidden="true">→</span>
+                        </button>
+                    </form>
+                    <p class="card-footnote">Source files are analysed as text; uploaded code is never executed.</p>
+                </section>
             </div>
 
             <footer class="home-footer">

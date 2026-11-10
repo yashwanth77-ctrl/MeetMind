@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f5f7fb">
+    <title>Project Workflow | MeetMind</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <style>
+        .workflow-page {
+            min-height: 100vh;
+            background: var(--color-page);
+            font-family: "Segoe UI Variable", Inter, ui-sans-serif, system-ui, sans-serif;
+        }
+        .workflow-main { width: min(1100px, calc(100% - 36px)); margin: 38px auto 64px; }
+        .workflow-header { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px; }
+        .workflow-header h1 { margin:0; color:#172033; font-size:clamp(27px,4vw,36px); font-weight:760; letter-spacing:-1.25px; line-height:1.15; }
+        .workflow-subtitle { color:var(--color-text-secondary); margin:8px 0 0; font-size:14px; letter-spacing:.05px; }
+        .workflow-panel {
+            background:linear-gradient(145deg, #fff 0%, #fdfdff 100%);
+            border:1px solid var(--color-border);
+            border-radius:18px;
+            padding:clamp(20px,3.2vw,32px);
+            margin-bottom:20px;
+            box-shadow:0 14px 36px rgb(16 24 40 / 5%);
+        }
+        .workflow-panel h2 { margin:0 0 18px; color:#25324a; font-size:18px; font-weight:720; letter-spacing:-.35px; }
+        .workflow-meta { color:var(--color-text-secondary); font-size:13px; line-height:1.75; }
+        .mermaid-wrap { width:100%; overflow-x:auto; padding:18px 8px; background:linear-gradient(135deg,#fafbff,#f7f8ff); border:1px solid #e8eaf5; border-radius:14px; }
+        .mermaid { min-width:620px; text-align:center; }
+        .workflow-explanation { color:#3b465b; font-size:15px; line-height:1.85; letter-spacing:.03px; overflow-wrap:anywhere; }
+        .workflow-explanation h3 {
+            margin:28px 0 10px;
+            padding-left:12px;
+            color:#273454;
+            border-left:3px solid var(--color-primary);
+            font-size:16px;
+            font-weight:740;
+            letter-spacing:-.25px;
+            line-height:1.45;
+        }
+        .workflow-explanation h3:first-child { margin-top:0; }
+        .workflow-explanation p { max-width:78ch; margin:0 0 14px; }
+        .workflow-explanation ul,
+        .workflow-explanation ol { display:grid; gap:8px; max-width:78ch; margin:4px 0 18px; padding-left:24px; }
+        .workflow-explanation li { padding-left:4px; }
+        .workflow-explanation li::marker { color:var(--color-primary); font-weight:700; }
+        .workflow-explanation strong { color:#263653; font-weight:720; }
+        .workflow-explanation em { color:#475467; }
+        .workflow-explanation code {
+            padding:2px 6px;
+            color:#5146b8;
+            background:#f0efff;
+            border:1px solid #e7e5ff;
+            border-radius:5px;
+            font-family:ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size:.88em;
+        }
+        .file-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+        .file-chip { padding:6px 10px; border:1px solid #e7eaf0; border-radius:8px; background:#f7f8fc; color:#475467; font-size:11px; font-weight:550; }
+        .back-link { display:inline-flex; margin-top:8px; color:var(--color-primary); text-decoration:none; font-weight:680; }
+        .back-link:hover { text-decoration:underline; }
+        @media(max-width:620px) { .workflow-header { align-items:flex-start; flex-direction:column; } .workflow-main { margin-top:24px; } }
+    </style>
+</head>
+<body class="workflow-page">
+    <header class="site-header">
+        <a class="brand" href="/" aria-label="MeetMind home">
+            <span class="brand-mark" aria-hidden="true">M</span>
+            <span class="brand-name">MeetMind</span>
+        </a>
+        <div class="header-note">AI Project Workflow Analyzer</div>
+    </header>
+
+    <main class="workflow-main">
+        <div class="workflow-header">
+            <div>
+                <h1>Project workflow analysis</h1>
+                <p class="workflow-subtitle">{{ analysis.project_name }} · {{ analysis.file_count }} source files inspected</p>
+            </div>
+            <a class="secondary-action" href="/">Analyze another project</a>
+        </div>
+
+        <section class="workflow-panel">
+            <h2>Generated workflow flowchart</h2>
+            <div class="mermaid-wrap">
+                <pre class="mermaid">{{ analysis.mermaid_code }}</pre>
+            </div>
+        </section>
+
+        <section class="workflow-panel">
+            <h2>AI project explanation</h2>
+            <div class="workflow-explanation" id="projectExplanation">{{ analysis.explanation }}</div>
+        </section>
+
+        <section class="workflow-panel">
+            <h2>Analysis coverage</h2>
+            <p class="workflow-meta">{{ analysis.analysis_note }}</p>
+        </section>
+
+        <section class="workflow-panel">
+            <h2>Files inspected</h2>
+            <p class="workflow-meta">The analyzer prioritizes project documentation, manifests, entry points, and application source. It skips environments, dependencies, generated files, uploads, and secret files.</p>
+            <div class="file-list">
+                {% for filename in analysis.files %}
+                    <span class="file-chip">{{ filename }}</span>
+                {% endfor %}
+            </div>
+        </section>
+
+        <a class="back-link" href="/">← Back to MeetMind</a>
+    </main>
+
+    <script>
+        mermaid.initialize({ startOnLoad: true, securityLevel: "strict", theme: "neutral", flowchart: { htmlLabels: false, curve: "basis" } });
+
+        const explanation = document.getElementById("projectExplanation");
+        const explanationLines = (explanation.textContent || "").split(/\r?\n/);
+
+        function appendInlineFormatting(target, text) {
+            const tokenPattern = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
+            let lastIndex = 0;
+
+            for (const match of text.matchAll(tokenPattern)) {
+                target.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+                const token = match[0];
+                let element;
+                let content;
+
+                if (token.startsWith("**")) {
+                    element = document.createElement("strong");
+                    content = token.slice(2, -2);
+                } else if (token.startsWith("`")) {
+                    element = document.createElement("code");
+                    content = token.slice(1, -1);
+                } else {
+                    element = document.createElement("em");
+                    content = token.slice(1, -1);
+                }
+
+                element.textContent = content;
+                target.appendChild(element);
+                lastIndex = match.index + token.length;
+            }
+
+            target.appendChild(document.createTextNode(text.slice(lastIndex)));
+        }
+
+        function getHeadingText(line) {
+            const markdownHeading = line.match(/^#{1,3}\s+(.+)$/);
+            if (markdownHeading) return markdownHeading[1];
+
+            const boldHeading = line.match(/^\*\*(.+)\*\*$/);
+            return boldHeading ? boldHeading[1] : null;
+        }
+
+        explanation.replaceChildren();
+        for (let index = 0; index < explanationLines.length;) {
+            const line = explanationLines[index].trim();
+            if (!line) {
+                index++;
+                continue;
+            }
+
+            const heading = getHeadingText(line);
+            if (heading) {
+                const element = document.createElement("h3");
+                appendInlineFormatting(element, heading);
+                explanation.appendChild(element);
+                index++;
+                continue;
+            }
+
+            const listMatch = line.match(/^(?:[-*]\s+|\d+[.)]\s+)/);
+            if (listMatch) {
+                const ordered = /^\d+[.)]/.test(line);
+                const list = document.createElement(ordered ? "ol" : "ul");
+                while (index < explanationLines.length) {
+                    const itemLine = explanationLines[index].trim();
+                    const itemMatch = itemLine.match(/^(?:[-*]\s+|\d+[.)]\s+)/);
+                    if (!itemMatch || /^\d+[.)]/.test(itemLine) !== ordered) break;
+                    const item = document.createElement("li");
+                    appendInlineFormatting(item, itemLine.slice(itemMatch[0].length));
+                    list.appendChild(item);
+                    index++;
+                }
+                explanation.appendChild(list);
+                continue;
+            }
+
+            const paragraphLines = [line];
+            index++;
+            while (index < explanationLines.length) {
+                const nextLine = explanationLines[index].trim();
+                if (!nextLine || getHeadingText(nextLine) || /^(?:[-*]\s+|\d+[.)]\s+)/.test(nextLine)) break;
+                paragraphLines.push(nextLine);
+                index++;
+            }
+            const paragraph = document.createElement("p");
+            appendInlineFormatting(paragraph, paragraphLines.join(" "));
+            explanation.appendChild(paragraph);
+        }
+    </script>
+</body>
+</html>

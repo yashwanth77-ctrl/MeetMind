@@ -1,7 +1,23 @@
+# Environment variables
 .env
+.env.*
+!.env.example
+
+# Python virtual environments
 venv/
 venv313/
+.venv/
+
+# Python cache
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Uploaded and downloaded files
 uploads/*
+!uploads/.gitkeep
+
 downloads/*
+!downloads/.gitkeep
+
+# IDE settings
+.vscode/

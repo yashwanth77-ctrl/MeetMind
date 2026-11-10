@@ -17,6 +17,7 @@ from werkzeug.utils import secure_filename
 from services.transcription import transcribe_audio
 from services.summarization import summarize_meeting
 from services.qa import answer_question
+from services.project_analyzer import analyze_project
 
 
 app = Flask(__name__)
@@ -27,6 +28,7 @@ DOWNLOAD_FOLDER = "downloads"
 ALLOWED_EXTENSIONS = {"mp3", "wav", "m4a"}
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["MAX_CONTENT_LENGTH"] = 150 * 1024 * 1024  # 150 MB upload limit
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
@@ -38,7 +40,6 @@ def allowed_file(filename):
         "." in filename
         and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
     )
-
 
 # Generate meeting summary using Gemini
 def generate_summary(transcript_text):
@@ -160,6 +161,39 @@ def upload():
         summary_filename=summary_filename,
         transcript_text=transcript_text
     )
+
+
+# AI Project Workflow Analyzer
+@app.route("/analyze-project", methods=["POST"])
+def analyze_project_route():
+
+    project_file = request.files.get("project_file")
+
+    if not project_file or not project_file.filename:
+        return "Please choose a project ZIP file.", 400
+
+    filename = secure_filename(project_file.filename)
+    if not filename.lower().endswith(".zip"):
+        return "Please upload your project as a .zip file.", 400
+
+    try:
+        analysis = analyze_project(project_file.stream, filename)
+        return render_template("project_workflow.html", analysis=analysis)
+
+    except ValueError as error:
+        return str(error), 400
+
+    except Exception as error:
+        print("Project analysis error:", repr(error))
+        return (
+            "Unable to analyse this project right now. Check the server logs and try again.",
+            500
+        )
+
+
+@app.errorhandler(413)
+def upload_too_large(_error):
+    return "The uploaded file is too large. Please keep the ZIP under 150 MB.", 413
 
 
 # AI Meeting Assistant - Question and Answer
